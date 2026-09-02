@@ -1,0 +1,21 @@
+{
+  "_comment": "Demo values in BRL. Configurable per airline/regulation.",
+  "delay": {
+    "minor":    { "threshold_minutes": 15,  "cost_per_passenger": 150,  "label": "minor (<2h)" },
+    "moderate": { "threshold_minutes": 120, "cost_per_passenger": 500,  "label": "moderate (2-4h)" },
+    "severe":   { "threshold_minutes": 240, "cost_per_passenger": 1200, "label": "severe (>4h)" }
+  },
+  "overbooking": {
+    "cost_per_passenger": 1800,
+    "label": "denied boarding compensation"
+  },
+  "missed_connection": {
+    "cost_per_passenger": 900,
+    "label": "rebooking + hotel + meals"
+  },
+  "cancellation": {
+    "cost_per_passenger": 2500,
+    "label": "full refund + compensation"
+  },
+  "currency": "BRL"
+}

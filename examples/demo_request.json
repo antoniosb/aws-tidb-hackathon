@@ -1,0 +1,14 @@
+{
+  "flight_number": "LH507",
+  "origin": "GRU",
+  "destination": "FRA",
+  "departure_time": "2026-09-02T18:40:00",
+  "aircraft_type": "Boeing 767",
+  "capacity": 200,
+  "bookings": 191,
+  "weather": {
+    "condition": "rain",
+    "temp_celsius": 18,
+    "wind_kmh": 45
+  }
+}
