@@ -1,7 +1,9 @@
 # SUBMISSION.md
 
 ## Time
-Nome do time: FlyAI - prevendo imprevistos (latam-hackathon-001)
+Nome do time: FlyAI - prevendo imprevistos (latam-hackathon-01)
+Repositório: https://github.com/antoniosb/aws-tidb-hackathon
+Demo: (em breve — vídeo de 2 minutos)
 Integrantes:
 Clarissa Antunes
 José da Cruz Vilela Junior
@@ -37,3 +39,29 @@ Companhias aéreas pagam indenizações previsíveis por overbooking, atraso e c
 | Frontend Streamlit | `frontend.py` |
 | Spec Kiro | `.kiro/specs/flight-risk-ai.md` |
 | Steering (regra de commit por checkpoint) | `.kiro/steering/workflow.md` |
+
+## Como rodar
+
+```bash
+git clone https://github.com/antoniosb/aws-tidb-hackathon.git
+cd aws-tidb-hackathon
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env  # preencha com suas credenciais TiDB e AWS
+
+# API
+uvicorn app.main:app --port 8000
+
+# Frontend (em outro terminal)
+streamlit run frontend.py --server.port 8501
+```
+
+Acesse: http://localhost:8501
+
+## O que faríamos a seguir
+
+- Deploy no EC2 com URL pública para demo ao vivo
+- Modelo ML (LogisticRegression) substituindo a média ponderada de taxas históricas
+- Missed connection risk usando itinerários reais de passageiros da base
+- Painel de histórico de análises por rota e companhia aérea
+- Indexação completa de casos históricos no vector memory (atualmente ~200 amostras)
