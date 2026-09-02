@@ -1,64 +1,39 @@
-# SUBMISSION
+# SUBMISSION.md
 
-## Team
-
-latam-hackathon (fill in your team number)
+## Time
+Nome do time: [preencher — número do time, ex. latam-hackathon-0XX]
+Integrantes:
+Clarissa Antunes
+José da Cruz Vilela Junior
+Antônio Britto
+Manuella Borges
+Vinicius França
 
 ## Pitch
-
-> "Before a flight becomes a disruption, we tell the airline how likely it is to go wrong, how many passengers it may affect, and how much it could cost."
+Um radar de risco operacional para companhias aéreas: identifica voos com risco de overbooking e atraso antes que aconteçam, e traduz esse risco em custo evitável de indenização para o time de operações agir preventivamente.
 
 ## O que faz
+Companhias aéreas pagam indenizações previsíveis por overbooking, atraso e conexão perdida, mas hoje reagem depois que o problema já aconteceu. Nossa aplicação cruza reservas, capacidade de aeronave e histórico de clima no dataset da airportdb para calcular, por voo, os riscos de atraso, cancelamento, overbooking e perda de conexão, e traduz isso em uma faixa de custo esperado em R$, usando busca vetorial para encontrar casos históricos parecidos que embasam a explicação gerada por IA. O agente do time de operações vê, por voo, os percentuais de risco, os passageiros expostos, a faixa de custo estimado, um insight explicando o porquê e uma ação recomendada (ex.: proteger passageiros em conexão e abrir remarcação voluntária).
 
-**Flight Risk AI** é uma API de análise de risco operacional aéreo orientada por dados.
-Dado um voo futuro, o sistema consulta padrões históricos reais no TiDB, recupera casos similares via vector search, calcula probabilidades de atraso/overbooking/conexão perdida de forma determinística, estima a exposição financeira esperada, e usa Amazon Bedrock para gerar um resumo executivo e recomendações priorizadas — tudo em uma única chamada REST.
-
-O LLM **nunca inventa números**. Todas as probabilidades e custos vêm de dados reais e modelos estatísticos.
-
-## Stack utilizado
-
-- [x] TiDB Cloud — banco de dados principal (`airportdb`, 12 tabelas, 617k bookings)
-- [x] TiDB Vector Search — `EMBED_TEXT` + `VEC_COSINE_DISTANCE` para busca de casos similares
-- [x] Amazon Bedrock — Claude 3 Haiku (`ap-southeast-1`) para resumo executivo e recomendações
-- [x] LangGraph — orquestração do pipeline de 9 nós
-- [x] FastAPI — API REST
-- [x] Kiro — desenvolvimento orientado a spec (ver `.kiro/specs/flight-risk-ai.md`)
-- [ ] AWS EC2 deployment (local demo)
+## Stack — marque o que você realmente usou
+- [x] TiDB Cloud Starter na AWS sa-east-1
+- [x] Busca vetorial no TiDB (coluna VECTOR + EMBED_TEXT + VEC_COSINE_DISTANCE)
+- [x] Amazon Bedrock (ap-southeast-1) — Claude 3 Haiku
+- [ ] Publicado na AWS → URL no ar: (demo local)
+- [x] Construído com Kiro (.kiro/ commitado — specs e steering)
 
 ## Onde olhar
 
-| O que | Onde |
-|-------|------|
-| TiDB SQL queries (padrões históricos) | `app/services/tidb.py` |
-| TiDB Vector Search | `app/services/vector_search.py` |
-| Amazon Bedrock | `app/services/bedrock.py` |
-| LangGraph pipeline (9 nós) | `app/graph/graph.py`, `app/graph/nodes.py` |
-| Risk engine (delay/overbooking/connection) | `app/services/risk_model.py` |
-| Financial exposure | `app/services/financial.py` |
-| Regras financeiras configuráveis | `app/config/legal_costs.json` |
-| Kiro spec | `.kiro/specs/flight-risk-ai.md` |
-| Demo request | `examples/demo_request.json` |
-
-## Como rodar
-
-```bash
-source .venv/bin/activate
-uvicorn app.main:app --port 8000
-
-# health
-curl http://localhost:8000/health
-
-# analyze
-curl -X POST http://localhost:8000/analyze-flight \
-  -H "Content-Type: application/json" \
-  -d @examples/demo_request.json
-```
-
-## O que faríamos com mais tempo
-
-- UI web simples (Streamlit ou React) para entrada do voo
-- Deploy no EC2 com porta 8000 pública
-- Mais dados no vetor memory (100+ voos indexados)
-- Missed connection usando dados reais de itinerário de passageiros
-- Modelo ML (LogisticRegression) com feature engineering completo
-- Painel com histórico de análises por rota
+| O que | Arquivo |
+|-------|---------|
+| Conexão e queries SQL ao TiDB (delay rate, booking ratio, route patterns) | `app/services/tidb.py` |
+| Busca vetorial — tabela `flight_risk_memory`, `EMBED_TEXT`, `VEC_COSINE_DISTANCE` | `app/services/vector_search.py` |
+| Chamadas ao Amazon Bedrock (Claude 3 Haiku, resumo executivo + recomendações) | `app/services/bedrock.py` |
+| Orquestração LangGraph (9 nós: validate → historical → vector → risks → exposure → financial → AI → output → validate) | `app/graph/graph.py`, `app/graph/nodes.py` |
+| Motor de risco (delay probability, overbooking, missed connection) | `app/services/risk_model.py` |
+| Motor financeiro (custo esperado em R$, score 0–100) | `app/services/financial.py` |
+| Regras de custo configuráveis por tipo de disruption | `app/config/legal_costs.json` |
+| API REST — POST /analyze-flight, GET /health | `app/main.py` |
+| Frontend Streamlit | `frontend.py` |
+| Spec Kiro | `.kiro/specs/flight-risk-ai.md` |
+| Steering (regra de commit por checkpoint) | `.kiro/steering/workflow.md` |
