@@ -6,7 +6,7 @@ from app.graph.state import AgentState
 from app.services import bedrock, financial, risk_model, tidb, vector_search
 
 
-# ── helpers ──────────────────────────────────────────────────────────────────
+# ── helpers ───────────────────────────────────────────────────────────────────
 
 def _safe(v):
     """Convert numpy/special types to plain Python for JSON."""
@@ -14,9 +14,9 @@ def _safe(v):
         return v
     try:
         import numpy as np
-        if isinstance(v, (np.integer,)):
+        if isinstance(v, np.integer):
             return int(v)
-        if isinstance(v, (np.floating,)):
+        if isinstance(v, np.floating):
             return float(v)
     except ImportError:
         pass
@@ -28,7 +28,7 @@ def _safe(v):
 # ── nodes ─────────────────────────────────────────────────────────────────────
 
 def validate_input(state: AgentState) -> AgentState:
-    fi = state.get("flight_input", {})
+    fi = dict(state.get("flight_input", {}))
     errors = list(state.get("errors", []))
 
     for field in ("origin", "destination", "departure_time"):
@@ -76,9 +76,7 @@ def retrieve_similar_cases(state: AgentState) -> AgentState:
     dt = fi.get("departure_time")
     hour = dt.hour if isinstance(dt, datetime) else 12
 
-    # Ensure vector table exists (idempotent)
     vector_search.ensure_table_populated()
-
     cases = vector_search.find_similar_cases(
         origin=fi["origin"],
         destination=fi["destination"],
@@ -149,16 +147,15 @@ def calculate_passenger_exposure(state: AgentState) -> AgentState:
     total_bookings = fi.get("bookings") or 0
     if total_bookings == 0:
         patterns = state.get("historical_patterns", {})
-        # estimate from route average bookings
         total_bookings = int(patterns.get("booking_ratio_avg", 0.7) * (fi.get("capacity") or 150))
 
-    delay_p = (risks.get("delay", {}).get("probability") or 0.0)
+    delay_p = float(risks.get("delay", {}).get("probability") or 0.0)
     ob = risks.get("overbooking", {})
-    overflow = ob.get("overflow", 0) or 0
-    conn_p = (risks.get("missed_connection", {}).get("probability") or 0.0)
+    overflow = int(ob.get("overflow") or 0)
+    conn_p = float(risks.get("missed_connection", {}).get("probability") or 0.0)
 
     delay_exposed = int(total_bookings * delay_p)
-    ob_exposed = overflow if overflow > 0 else int(total_bookings * (ob.get("probability") or 0.0) * 0.05)
+    ob_exposed = overflow if overflow > 0 else int(total_bookings * float(ob.get("probability") or 0.0) * 0.05)
     conn_exposed = int(total_bookings * conn_p * 0.30)
 
     at_risk = min(max(delay_exposed, ob_exposed, conn_exposed), total_bookings)
@@ -168,6 +165,12 @@ def calculate_passenger_exposure(state: AgentState) -> AgentState:
         "passenger_exposure": {
             "total_bookings": int(total_bookings),
             "estimated_passengers_at_risk": int(at_risk),
+            "by_event": {
+                "delay": delay_exposed,
+                "overbooking": ob_exposed,
+                "missed_connection": conn_exposed,
+                "cancellation": 0,
+            },
         },
     }
 
@@ -209,6 +212,7 @@ def ai_risk_analyst(state: AgentState) -> AgentState:
         **state,
         "ai_summary": result.get("summary", ""),
         "recommendations": result.get("recommendations", []),
+        "ai_provider": result.get("ai_provider", "unknown"),
     }
 
 
@@ -221,10 +225,15 @@ def build_structured_output(state: AgentState) -> AgentState:
     dep_str = dt.isoformat() if isinstance(dt, datetime) else str(dt)
 
     output = {
-        "flight_number": fi.get("flight_number", "N/A"),
-        "origin": fi["origin"],
-        "destination": fi["destination"],
-        "departure_time": dep_str,
+        "flight": {
+            "flight_number": fi.get("flight_number", "N/A"),
+            "origin": fi["origin"],
+            "destination": fi["destination"],
+            "departure_time": dep_str,
+            "aircraft_type": fi.get("aircraft_type"),
+            "capacity": fi.get("capacity"),
+            "bookings": fi.get("bookings"),
+        },
         "risks": {
             "delay": {
                 "available": risks["delay"]["available"],
@@ -239,6 +248,8 @@ def build_structured_output(state: AgentState) -> AgentState:
                 "level": risks["overbooking"]["level"],
                 "confidence": risks["overbooking"]["confidence"],
                 "drivers": risks["overbooking"]["drivers"],
+                "booking_ratio": risks["overbooking"].get("booking_ratio"),
+                "overflow": risks["overbooking"].get("overflow", 0),
             },
             "missed_connection": {
                 "available": risks["missed_connection"]["available"],
@@ -262,10 +273,13 @@ def build_structured_output(state: AgentState) -> AgentState:
             "expected": cost.get("expected", 0.0),
             "currency": cost.get("currency", "BRL"),
         },
+        "financial_exposure_by_event": cost.get("by_event", {}),
+        "judicial_exposure": cost.get("judicial_exposure", {}),
         "overall_financial_risk_score": state.get("overall_risk_score", 0.0),
         "overall_financial_risk_level": state.get("overall_risk_level", "UNKNOWN"),
-        "summary": state.get("ai_summary", ""),
-        "recommendations": state.get("recommendations", []),
+        "ai_insight": state.get("ai_summary", ""),
+        "recommended_actions": state.get("recommendations", []),
+        "ai_provider": state.get("ai_provider", "unknown"),
         "similar_historical_cases": state.get("similar_cases", []),
         "errors": state.get("errors", []),
     }
@@ -276,22 +290,30 @@ def validate_output(state: AgentState) -> AgentState:
     out = state.get("final_output", {})
     cost = out.get("estimated_passenger_cost", {})
 
-    # Clamp probabilities
+    # Clamp probabilities 0..1
     for risk_key in ("delay", "overbooking", "missed_connection"):
         r = out.get("risks", {}).get(risk_key, {})
         if r.get("probability") is not None:
-            r["probability"] = min(max(float(r["probability"]), 0.0), 1.0)
+            r["probability"] = round(min(max(float(r["probability"]), 0.0), 1.0), 4)
 
-    # Clamp cost order
-    mn = cost.get("min", 0.0)
-    mx = cost.get("max", 0.0)
-    exp = cost.get("expected", 0.0)
-    cost["min"] = min(mn, exp, mx)
-    cost["max"] = max(mn, exp, mx)
-    cost["expected"] = max(min(exp, cost["max"]), cost["min"])
+    # Ensure cost ordering: min <= expected <= max
+    mn = float(cost.get("min") or 0.0)
+    mx = float(cost.get("max") or 0.0)
+    exp = float(cost.get("expected") or 0.0)
+    cost["min"] = round(min(mn, exp, mx), 2)
+    cost["max"] = round(max(mn, exp, mx), 2)
+    cost["expected"] = round(max(min(exp, cost["max"]), cost["min"]), 2)
 
-    # Clamp score
+    # Clamp score 0..100
     score = out.get("overall_financial_risk_score", 0.0)
-    out["overall_financial_risk_score"] = min(max(float(score or 0), 0.0), 100.0)
+    out["overall_financial_risk_score"] = round(min(max(float(score or 0), 0.0), 100.0), 1)
+
+    # Ensure no NaN/Inf in by_event costs
+    for ev in out.get("financial_exposure_by_event", {}).values():
+        if isinstance(ev, dict):
+            for k in ("min", "max", "expected"):
+                v = ev.get(k)
+                if v is not None and (math.isnan(float(v)) or math.isinf(float(v))):
+                    ev[k] = 0.0
 
     return {**state, "final_output": out}

@@ -1,0 +1,143 @@
+{
+    "flight": {
+        "flight_number": "LH507",
+        "origin": "GRU",
+        "destination": "FRA",
+        "departure_time": "2026-09-02T18:40:00",
+        "aircraft_type": "Boeing 767",
+        "capacity": 200,
+        "bookings": 191
+    },
+    "risks": {
+        "delay": {
+            "available": true,
+            "probability": 0.3,
+            "level": "MEDIUM",
+            "confidence": "LOW",
+            "drivers": [
+                "No direct route history; using origin and departure-hour rates"
+            ]
+        },
+        "overbooking": {
+            "available": true,
+            "probability": 0.7,
+            "level": "HIGH",
+            "confidence": "HIGH",
+            "drivers": [
+                "Booking ratio 96% \u2014 near/over capacity"
+            ],
+            "booking_ratio": 0.955,
+            "overflow": 0
+        },
+        "missed_connection": {
+            "available": true,
+            "probability": 0.112,
+            "level": "LOW",
+            "confidence": "LOW",
+            "drivers": [
+                "Derived from delay probability 30%",
+                "Avg historical delay 30 min",
+                "~30% passengers assumed to have connections"
+            ]
+        },
+        "cancellation": {
+            "available": false,
+            "probability": null,
+            "level": "UNKNOWN",
+            "confidence": "LOW",
+            "drivers": [
+                "No cancellation status field in dataset"
+            ]
+        }
+    },
+    "passenger_exposure": {
+        "total_bookings": 191,
+        "estimated_passengers_at_risk": 57,
+        "by_event": {
+            "delay": 57,
+            "overbooking": 6,
+            "missed_connection": 6,
+            "cancellation": 0
+        }
+    },
+    "estimated_passenger_cost": {
+        "min": 43036.2,
+        "max": 150936.6,
+        "expected": 96986.4,
+        "currency": "BRL"
+    },
+    "financial_exposure_by_event": {
+        "delay": {
+            "min": 30369.0,
+            "max": 106005.0,
+            "expected": 68187.0,
+            "passengers_exposed": 57,
+            "cost_basis": "Severe delay >4h / overnight reference",
+            "available": true
+        },
+        "overbooking": {
+            "available": true,
+            "passengers_exposed": 6,
+            "min": 12096.0,
+            "max": 41370.0,
+            "expected": 26733.0
+        },
+        "missed_connection": {
+            "min": 571.2,
+            "max": 3561.6,
+            "expected": 2066.4,
+            "passengers_exposed": 6,
+            "available": true
+        },
+        "cancellation": {
+            "available": false,
+            "passengers_exposed": 0,
+            "min": 0.0,
+            "max": 0.0,
+            "expected": 0.0
+        }
+    },
+    "judicial_exposure": {
+        "included_in_operational_expected_cost": false,
+        "affected_passengers_estimate": 57,
+        "min_additional": 370500,
+        "max_additional": 1197000,
+        "min_per_passenger": 6500,
+        "max_per_passenger": 21000,
+        "currency": "BRL",
+        "basis": "Exposi\u00e7\u00e3o adicional se judicializado"
+    },
+    "overall_financial_risk_score": 32.6,
+    "overall_financial_risk_level": "MEDIUM",
+    "ai_insight": "This flight has a high risk of overbooking (70%) and a medium risk of delay (30% probability, 30 min average), exposing 57 passengers and costing up to BRL 150,937 in operational expenses.",
+    "recommended_actions": [
+        {
+            "priority": 1,
+            "action": "Increase gate staff and provide better rebooking options to minimize impact of overbooking",
+            "reason": "The 70% probability of overbooking, with a 95% booking ratio, represents a significant risk that should be proactively managed to reduce passenger inconvenience and operational costs."
+        },
+        {
+            "priority": 2,
+            "action": "Closely monitor flight progress and be prepared to invoke contingency plans to mitigate anticipated 30-minute delays",
+            "reason": "The 30% probability of a 30-minute delay indicates a medium risk that should be planned for to minimize operational disruption and passenger impact."
+        },
+        {
+            "priority": 3,
+            "action": "Review flight schedule and connection times to understand and potentially reduce 11% risk of missed connections",
+            "reason": "The 11% probability of missed connections, while lower than other risks, should still be addressed to improve passenger experience and operational efficiency."
+        }
+    ],
+    "ai_provider": "bedrock",
+    "similar_historical_cases": [
+        {
+            "flight_id": 99999,
+            "origin": "GRU",
+            "destination": "FRA",
+            "description": "Flight from GRU to FRA. Aircraft: Boeing 767. Departure hour: 18. Booking ratio: 0.95. Delay minutes: 45.",
+            "delay_minutes": 45.0,
+            "booking_ratio": 0.95,
+            "similarity": 0.964
+        }
+    ],
+    "errors": []
+}

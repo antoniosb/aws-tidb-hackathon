@@ -1,4 +1,7 @@
-"""Amazon Bedrock integration for AI risk narrative generation."""
+"""Amazon Bedrock — AI risk narrative generation.
+Never invents probabilities, costs, or passenger counts.
+Falls back to deterministic recommendations if Bedrock is unavailable.
+"""
 import json
 import os
 
@@ -23,83 +26,87 @@ def _get_client():
 
 
 SYSTEM_PROMPT = """You are an airline operational risk analyst.
-Your job is to interpret a deterministic flight risk analysis.
-Never change or invent probabilities, costs, passenger counts, or historical statistics.
-Use only the supplied data.
-Be concise, operational and actionable.
-Always respond with valid JSON only."""
+You receive a deterministic flight risk report with pre-calculated probabilities, costs, and passenger counts.
+Your role is ONLY to interpret the data — never change, invent, or adjust any number.
+Be concise, specific, and actionable. Reference the actual data values in your response.
+Always respond with valid JSON only, no markdown, no extra text."""
 
-USER_TEMPLATE = """Analyze this flight risk report and provide a brief executive summary and prioritized recommendations.
+USER_TEMPLATE = """Interpret this flight risk report. Use only the provided data.
 
-Flight: {flight_number} ({origin} → {destination})
+Flight: {flight_number} — {origin} → {destination}
 Departure: {departure_time}
 
-RISKS (deterministic):
-- Delay probability: {delay_prob:.0%} ({delay_level}) — avg {avg_delay:.0f} min historical
-- Overbooking probability: {ob_prob} ({ob_level}) — booking ratio: {booking_ratio}
-- Missed connection probability: {conn_prob} ({conn_level})
+RISKS (pre-calculated, do not modify):
+- Delay: {delay_prob:.0%} ({delay_level}) — avg historical delay {avg_delay:.0f} min
+- Overbooking: {ob_prob} ({ob_level}) — booking ratio {booking_ratio}
+- Missed connection: {conn_prob} ({conn_level})
+- Cancellation: not available in dataset
 
-PASSENGER EXPOSURE: {passengers_at_risk} of {total_bookings} passengers at risk
+PASSENGER EXPOSURE:
+- Total bookings: {total_bookings}
+- Estimated at risk: {passengers_at_risk}
 
-FINANCIAL EXPOSURE: BRL {cost_expected:,.0f} expected (range: {cost_min:,.0f} – {cost_max:,.0f})
+FINANCIAL EXPOSURE (operational, excl. judicial):
+- Expected: BRL {cost_expected:,.0f}
+- Range: BRL {cost_min:,.0f} – {cost_max:,.0f}
 
 SIMILAR HISTORICAL CASES:
 {similar_cases}
 
 OVERALL RISK SCORE: {overall_score}/100 ({overall_level})
 
-Respond ONLY with this JSON:
+Provide a concise operational interpretation and 2-3 prioritized preventive actions.
+
+Respond ONLY with this JSON (no markdown):
 {{
-  "summary": "2-3 sentence executive summary",
+  "summary": "1-2 sentence insight referencing specific risk drivers from the data above",
   "recommendations": [
-    {{"priority": 1, "action": "...", "reason": "...", "estimated_impact": "..."}},
-    {{"priority": 2, "action": "...", "reason": "...", "estimated_impact": "..."}},
-    {{"priority": 3, "action": "...", "reason": "...", "estimated_impact": "..."}}
+    {{"priority": 1, "action": "specific preventive action", "reason": "why, citing the data"}},
+    {{"priority": 2, "action": "specific preventive action", "reason": "why, citing the data"}},
+    {{"priority": 3, "action": "specific preventive action", "reason": "why, citing the data"}}
   ]
 }}"""
 
 
 def _deterministic_fallback(risks: dict, cost: dict, overall_level: str) -> dict:
-    delay_p = risks["delay"].get("probability") or 0.0
-    ob_p = risks["overbooking"].get("probability") or 0.0
-    conn_p = risks["missed_connection"].get("probability") or 0.0
+    delay_p = float(risks.get("delay", {}).get("probability") or 0.0)
+    ob_p = float(risks.get("overbooking", {}).get("probability") or 0.0)
+    conn_p = float(risks.get("missed_connection", {}).get("probability") or 0.0)
+    exp_cost = cost.get("expected", 0.0)
 
     summary = (
-        f"This flight presents {overall_level.lower()} financial exposure. "
-        f"Delay risk is {risks['delay']['level'].lower()} ({delay_p:.0%}), "
-        f"overbooking risk is {risks['overbooking']['level'].lower()} ({ob_p:.0%}). "
-        f"Expected passenger-related cost: BRL {cost['expected']:,.0f}."
+        f"This flight presents {overall_level.lower()} financial risk. "
+        f"Delay probability is {delay_p:.0%}, overbooking risk {ob_p:.0%}. "
+        f"Expected operational exposure: BRL {exp_cost:,.0f}."
     )
+
     recs = []
     if delay_p >= 0.5:
         recs.append({
             "priority": 1,
-            "action": "Pre-position crew and ground staff for delay management",
-            "reason": f"High delay probability ({delay_p:.0%})",
-            "estimated_impact": "Reduces passenger rebooking costs",
+            "action": "Pre-position crew and ground staff for delay contingency",
+            "reason": f"Delay probability is {delay_p:.0%} — proactive staffing reduces passenger impact",
         })
     if ob_p >= 0.4:
         recs.append({
             "priority": len(recs) + 1,
-            "action": "Activate voluntary denied-boarding compensation program",
-            "reason": f"Elevated overbooking risk ({ob_p:.0%})",
-            "estimated_impact": "Avoids involuntary bumping penalties",
+            "action": "Activate voluntary denied-boarding compensation program before check-in",
+            "reason": f"Overbooking risk {ob_p:.0%} — voluntary bumping avoids involuntary penalties",
         })
     if conn_p >= 0.3:
         recs.append({
             "priority": len(recs) + 1,
-            "action": "Alert connection passengers and pre-rebook vulnerable itineraries",
-            "reason": f"Missed connection risk {conn_p:.0%}",
-            "estimated_impact": "Reduces downstream delay chain",
+            "action": "Identify and protect connecting passengers, pre-rebook vulnerable itineraries",
+            "reason": f"Missed connection risk {conn_p:.0%} — early rebooking prevents downstream delays",
         })
     if not recs:
         recs.append({
             "priority": 1,
-            "action": "Continue standard monitoring",
+            "action": "Maintain standard operational monitoring",
             "reason": "Risk levels are within acceptable range",
-            "estimated_impact": "No immediate action required",
         })
-    return {"summary": summary, "recommendations": recs}
+
+    return {"summary": summary, "recommendations": recs, "ai_provider": "fallback"}
 
 
 def generate_ai_analysis(
@@ -113,30 +120,37 @@ def generate_ai_analysis(
 ) -> dict:
     try:
         cases_text = "\n".join(
-            f"  - Flight {c['origin']}→{c['destination']}: delay {c['delay_minutes']:.0f}min, "
-            f"booking ratio {c['booking_ratio']:.0%}, similarity {c['similarity']:.0%}"
+            f"  - {c.get('origin','?')}→{c.get('destination','?')}: "
+            f"delay {c.get('delay_minutes', 0):.0f} min, "
+            f"booking ratio {c.get('booking_ratio', 0):.0%}, "
+            f"similarity {c.get('similarity', 0):.0%}"
             for c in (similar_cases[:3] if similar_cases else [])
-        ) or "  No similar cases found"
+        ) or "  No similar cases retrieved"
 
-        ob = risks["overbooking"]
+        ob = risks.get("overbooking", {})
+        delay = risks.get("delay", {})
+        conn = risks.get("missed_connection", {})
+        dt = flight_input.get("departure_time", "")
+        dep_str = dt.isoformat() if hasattr(dt, "isoformat") else str(dt)
+
         prompt = USER_TEMPLATE.format(
             flight_number=flight_input.get("flight_number", "N/A"),
             origin=flight_input.get("origin", ""),
             destination=flight_input.get("destination", ""),
-            departure_time=flight_input.get("departure_time", ""),
-            delay_prob=risks["delay"].get("probability") or 0.0,
-            delay_level=risks["delay"]["level"],
-            avg_delay=risks["delay"].get("avg_delay_min", 0),
-            ob_prob=f"{(ob.get('probability') or 0.0):.0%}",
-            ob_level=ob["level"],
+            departure_time=dep_str,
+            delay_prob=float(delay.get("probability") or 0.0),
+            delay_level=delay.get("level", "UNKNOWN"),
+            avg_delay=float(delay.get("avg_delay_min") or 0),
+            ob_prob=f"{float(ob.get('probability') or 0.0):.0%}",
+            ob_level=ob.get("level", "UNKNOWN"),
             booking_ratio=ob.get("booking_ratio") or "N/A",
-            conn_prob=f"{(risks['missed_connection'].get('probability') or 0.0):.0%}",
-            conn_level=risks["missed_connection"]["level"],
-            passengers_at_risk=passenger_exposure["estimated_passengers_at_risk"],
-            total_bookings=passenger_exposure["total_bookings"],
-            cost_expected=cost["expected"],
-            cost_min=cost["min"],
-            cost_max=cost["max"],
+            conn_prob=f"{float(conn.get('probability') or 0.0):.0%}",
+            conn_level=conn.get("level", "UNKNOWN"),
+            total_bookings=passenger_exposure.get("total_bookings", 0),
+            passengers_at_risk=passenger_exposure.get("estimated_passengers_at_risk", 0),
+            cost_expected=float(cost.get("expected", 0.0)),
+            cost_min=float(cost.get("min", 0.0)),
+            cost_max=float(cost.get("max", 0.0)),
             similar_cases=cases_text,
             overall_score=overall_score,
             overall_level=overall_level,
@@ -160,10 +174,15 @@ def generate_ai_analysis(
         if start >= 0 and end > start:
             result = json.loads(text[start:end])
             if "summary" in result and "recommendations" in result:
+                result["ai_provider"] = "bedrock"
                 return result
 
-        return _deterministic_fallback(risks, cost, overall_level)
+        fb = _deterministic_fallback(risks, cost, overall_level)
+        fb["ai_provider"] = "fallback"
+        return fb
 
     except Exception as e:
         print(f"[bedrock] failed: {e}")
-        return _deterministic_fallback(risks, cost, overall_level)
+        fb = _deterministic_fallback(risks, cost, overall_level)
+        fb["ai_provider"] = "fallback"
+        return fb

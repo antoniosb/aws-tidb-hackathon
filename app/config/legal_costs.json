@@ -1,21 +1,35 @@
 {
-  "_comment": "Demo values in BRL. Configurable per airline/regulation.",
-  "delay": {
-    "minor":    { "threshold_minutes": 15,  "cost_per_passenger": 150,  "label": "minor (<2h)" },
-    "moderate": { "threshold_minutes": 120, "cost_per_passenger": 500,  "label": "moderate (2-4h)" },
-    "severe":   { "threshold_minutes": 240, "cost_per_passenger": 1200, "label": "severe (>4h)" }
+  "_comment": "Brazilian aviation compensation references in BRL. Configurable per regulation/airline.",
+  "delay_severe": {
+    "description": "Atraso >4h / pernoite",
+    "min_per_passenger": 530,
+    "max_per_passenger": 1850,
+    "cost_basis": "Severe delay >4h / overnight reference",
+    "currency": "BRL"
   },
   "overbooking": {
-    "cost_per_passenger": 1800,
-    "label": "denied boarding compensation"
-  },
-  "missed_connection": {
-    "cost_per_passenger": 900,
-    "label": "rebooking + hotel + meals"
+    "description": "Overbooking nacional",
+    "min_per_passenger": 2880,
+    "max_per_passenger": 9850,
+    "currency": "BRL"
   },
   "cancellation": {
-    "cost_per_passenger": 2500,
-    "label": "full refund + compensation"
+    "description": "Cancelamento",
+    "min_per_passenger": 1000,
+    "max_per_passenger": 7000,
+    "currency": "BRL"
   },
-  "currency": "BRL"
+  "missed_connection": {
+    "description": "Perda de conexão",
+    "min_per_passenger": 850,
+    "max_per_passenger": 5300,
+    "currency": "BRL"
+  },
+  "judicial_exposure": {
+    "description": "Exposição adicional se judicializado",
+    "min_per_passenger": 6500,
+    "max_per_passenger": 21000,
+    "currency": "BRL",
+    "include_in_operational_expected_cost": false
+  }
 }

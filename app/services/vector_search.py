@@ -118,14 +118,15 @@ def find_similar_cases(origin: str, destination: str, aircraft_type: str | None,
         return [
             {
                 "flight_id": r[0],
-                "origin": r[1],
-                "destination": r[2],
-                "description": r[3][:200] if r[3] else "",
+                "origin": r[1] or "?",
+                "destination": r[2] or "?",
+                "description": (r[3] or "")[:200],
                 "delay_minutes": float(r[4] or 0),
                 "booking_ratio": float(r[5] or 0),
                 "similarity": round(1.0 - float(r[6] or 1.0), 3),
             }
             for r in rows
+            if r[1] and r[2]  # skip rows with missing airport codes
         ]
     except Exception as e:
         print(f"[vector_search] query failed: {e}")

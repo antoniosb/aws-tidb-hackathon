@@ -12,6 +12,7 @@ class AgentState(TypedDict, total=False):
     overall_risk_score: float
     overall_risk_level: str
     ai_summary: str
+    ai_provider: str
     recommendations: list[dict]
     final_output: dict
     errors: list[str]
