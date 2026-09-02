@@ -6,24 +6,25 @@ Run this once to create the table and insert a sample note, then search it.
 """
 
 import os
+import ssl
 
 import pymysql
 from dotenv import load_dotenv
 
 load_dotenv()
 
-SSL_CA = "/etc/ssl/cert.pem" if os.path.exists("/etc/ssl/cert.pem") else None
+# Use the system CA bundle that Python's OpenSSL actually trusts
+SSL_CA = ssl.get_default_verify_paths().cafile or "/etc/ssl/cert.pem"
 
 
 def get_conn() -> pymysql.Connection:
-    ssl = {"ca": SSL_CA} if SSL_CA else True
     return pymysql.connect(
         host=os.environ["TIDB_HOST"],
         port=int(os.environ.get("TIDB_PORT", 4000)),
         user=os.environ["TIDB_USER"],
         password=os.environ["TIDB_PASSWORD"],
         database=os.environ.get("TIDB_DATABASE", "airportdb"),
-        ssl=ssl,
+        ssl={"ca": SSL_CA},
         autocommit=True,
     )
 

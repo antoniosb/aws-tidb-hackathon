@@ -1,9 +1,13 @@
 import os
+import ssl
 
 import pymysql
 from dotenv import load_dotenv
 
 load_dotenv()
+
+# Use the system CA bundle that Python's OpenSSL actually trusts
+SSL_CA = ssl.get_default_verify_paths().cafile or "/etc/ssl/cert.pem"
 
 conn = pymysql.connect(
     host=os.environ["TIDB_HOST"],
@@ -11,7 +15,7 @@ conn = pymysql.connect(
     user=os.environ["TIDB_USER"],
     password=os.environ["TIDB_PASSWORD"],
     database=os.environ.get("TIDB_DATABASE", "airportdb"),
-    ssl={"ca": "/etc/ssl/cert.pem"},
+    ssl={"ca": SSL_CA},
 )
 
 with conn.cursor() as cur:
