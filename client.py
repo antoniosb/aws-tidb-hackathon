@@ -1,11 +1,17 @@
 import json
+import os
 
 import boto3
 from dotenv import load_dotenv
 
 load_dotenv()
 
-bedrock = boto3.client("bedrock-runtime", region_name="ap-southeast-1")
+bedrock = boto3.client(
+    "bedrock-runtime",
+    region_name=os.environ.get("AWS_REGION", "ap-southeast-1"),
+    aws_access_key_id=os.environ["AWS_ACCESS_KEY_ID"],
+    aws_secret_access_key=os.environ["AWS_SECRET_ACCESS_KEY"],
+)
 
 
 def perguntar(prompt: str) -> str:
