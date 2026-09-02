@@ -1,0 +1,9 @@
+FINALIDADE MODEL ID DISPONÍVEL EM ap-southeast-1
+
+Texto anthropic.claude-3-5-sonnet-20240620-v1:0
+
+Texto (mais rápido) anthropic.claude-3-haiku-20240307-v1:0
+
+Embeddings cohere.embed-english-v3 — 1024 dimensões
+
+Embeddings multilíngues cohere.embed-multilingual-v3 — 1024 dimensões

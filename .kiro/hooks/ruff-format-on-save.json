@@ -1,0 +1,15 @@
+{
+  "version": "v1",
+  "hooks": [
+    {
+      "name": "Ruff format on save",
+      "trigger": "PostFileSave",
+      "description": "Auto-format and lint-fix Python files with ruff whenever they are saved",
+      "matcher": "\\.py$",
+      "action": {
+        "type": "command",
+        "command": "cd /Users/tunico/code/aws/aws-tidb-poc && .venv/bin/ruff format \"$FILE\" && .venv/bin/ruff check --fix \"$FILE\""
+      }
+    }
+  ]
+}
