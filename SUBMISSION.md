@@ -1,7 +1,7 @@
 # SUBMISSION.md
 
 ## Time
-Nome do time: [preencher — número do time, ex. latam-hackathon-0XX]
+Nome do time: FlyAI - prevendo imprevistos (latam-hackathon-001)
 Integrantes:
 Clarissa Antunes
 José da Cruz Vilela Junior
