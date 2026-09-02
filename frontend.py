@@ -145,7 +145,8 @@ if submitted:
     level = data.get("overall_financial_risk_level", "UNKNOWN")
 
     st.divider()
-    st.subheader(f"Analysis: {data.get('flight_number')}  {data.get('origin')} → {data.get('destination')}")
+    flight = data.get("flight", {})
+    st.subheader(f"Analysis: {flight.get('flight_number')}  {flight.get('origin')} → {flight.get('destination')}")
 
     col_score, col_cost, col_pax = st.columns(3)
     with col_score:
@@ -154,7 +155,7 @@ if submitted:
     with col_cost:
         cost = data.get("estimated_passenger_cost", {})
         st.metric(
-            "Expected Financial Exposure",
+            "Expected Operational Exposure",
             f"R$ {cost.get('expected', 0):,.0f}",
             delta=f"Range: R$ {cost.get('min', 0):,.0f} – R$ {cost.get('max', 0):,.0f}",
             delta_color="off",
@@ -166,6 +167,14 @@ if submitted:
             pe.get("estimated_passengers_at_risk", 0),
             delta=f"of {pe.get('total_bookings', 0)} booked",
             delta_color="off",
+        )
+
+    # judicial exposure callout
+    jud = data.get("judicial_exposure", {})
+    if jud and not jud.get("included_in_operational_expected_cost", True):
+        st.warning(
+            f"⚠️ **Judicial exposure (if cases litigated): R$ {jud.get('min_additional', 0):,.0f} – "
+            f"R$ {jud.get('max_additional', 0):,.0f}** · Not included in operational cost above."
         )
 
     # ── risk breakdown ────────────────────────────────────────────────────────
@@ -196,12 +205,12 @@ if submitted:
 
     # ── AI summary ────────────────────────────────────────────────────────────
     st.subheader("🤖 AI Risk Analysis")
-    summary = data.get("summary", "")
+    summary = data.get("ai_insight", "")
     if summary:
         st.info(summary)
 
     # ── recommendations ───────────────────────────────────────────────────────
-    recs = data.get("recommendations", [])
+    recs = data.get("recommended_actions", [])
     if recs:
         st.subheader("📋 Preventive Recommendations")
         for rec in sorted(recs, key=lambda r: r.get("priority", 99)):
